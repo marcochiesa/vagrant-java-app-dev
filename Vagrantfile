@@ -7,10 +7,14 @@ VAGRANTFILE_API_VERSION = "2"
 $provision_script = <<SCRIPT
 echo "provisioning system ..."
 echo "updating system packages"
-yum update -y
-echo "disable selinux and iptables"
-sed -i s/SELINUX=permissive/SELINUX=disabled/g /etc/selinux/config
-chkconfig --level 0123456 iptables off
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
+DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
+apt-get autoremove
+apt-get clean
+#echo "disable selinux and iptables"
+#sed -i s/SELINUX=permissive/SELINUX=disabled/g /etc/selinux/config
+#chkconfig --level 0123456 iptables off
 echo "provisioning complete"
 SCRIPT
 
@@ -20,7 +24,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # please see the online documentation at vagrantup.com.
 
   # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "chef/centos-6.5"
+  config.vm.box = "chef/ubuntu-14.04"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
