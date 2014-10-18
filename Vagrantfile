@@ -6,15 +6,72 @@ VAGRANTFILE_API_VERSION = "2"
 
 $provision_script = <<SCRIPT
 echo "provisioning system ..."
-echo "updating system packages"
+echo "updating system packages ..."
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
-DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
+# use this function for non-interactive apt-get upgrade, dist-upgrade, and install
+apt_get_yes () {
+    DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" "$@"
+}
+apt_get_yes upgrade
+apt_get_yes dist-upgrade
+echo "installing new packages..."
+apt_get_yes install vim
+apt_get_yes install openjdk-7-jre
+apt_get_yes install openjdk-7-jdk
+# get 'add-apt-repository' command
+apt_get_yes install software-properties-common
+# add ppa for gradle
+add-apt-repository -y ppa:cwchien/gradle
+apt-get update
+apt_get_yes install gradle-ppa
+apt_get_yes install git
 apt-get autoremove
 apt-get clean
 #echo "disable selinux and iptables"
 #sed -i s/SELINUX=permissive/SELINUX=disabled/g /etc/selinux/config
 #chkconfig --level 0123456 iptables off
+echo "setting up app script and init script ..."
+USER=vagrant
+APP=java-app-dev
+APP_DIR=/usr/share/${APP}
+SCRIPT=${APP_DIR}/${APP}.sh
+INIT=/etc/init.d/${APP}
+CONF_DIR=/vagrant
+CONF=${CONF_DIR}/${APP}.conf
+# setup app script
+mkdir ${APP_DIR}
+cat << EOF > ${SCRIPT}
+stop() {
+    echo "stopping java app ..."
+}
+trap stop TERM
+if [ -r ${CONF} ]; then
+    . ${CONF}
+else
+    exit 1
+fi
+sudo -u ${USER} cd \\${HOME}
+if [ ! -d "\\${GIT_PROJ_NAME}" ]; then
+    sudo -u ${USER} git clone "\\${GIT_CLONE_URL}" "\\${GIT_PROJ_NAME}"
+fi
+cd "\\${GIT_PROJ_NAME}"
+sudo -u ${USER} git pull
+sudo -u ${USER} gradlew build && java -jar build/libs/gs-spring-boot-0.1.0.jar
+EOF
+chmod ugo+x ${SCRIPT}
+ln -s ${SCRIPT} /usr/sbin/${APP}
+# setup init script
+cp /etc/init.d/skeleton ${INIT}
+# subst function performs in-place substitution of conf variables (ie: var=value).
+# It expects three arguments: the file in which to perform the substution, the variable name, and the desired value
+subst () {
+    cat "${1}" | sed -e "s|^\\(${2}=\\).*$|\\1${3}|" > /tmp/xx; mv /tmp/xx "${1}"
+}
+subst ${INIT} NAME ${APP}
+subst ${INIT} DESC "Script to update java project code, build, and launch it"
+subst ${INIT} DAEMON_ARGS "\\"\\""
+# set to auto-start init script on system startup
+update-rc.d ${APP} defaults
 echo "provisioning complete"
 SCRIPT
 
