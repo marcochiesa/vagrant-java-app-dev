@@ -33,15 +33,16 @@ apt-get clean
 #chkconfig --level 0123456 iptables off
 echo "setting up app script and init script ..."
 USER=vagrant
-USER_HOME=/home/${USER}
 APP=java-app-dev
 APP_DIR=/usr/share/${APP}
 SCRIPT=${APP_DIR}/${APP}.sh
-INIT=/etc/init.d/${APP}
+UPSTART=/etc/init/${APP}.conf
+LOG=/var/log/${APP}
 CONF_DIR=/vagrant
 CONF=${CONF_DIR}/${APP}.conf
 # setup app script
 mkdir ${APP_DIR}
+chown ${USER}:${USER} ${APP_DIR}
 cat << EOF > ${SCRIPT}
 \#!/bin/bash
 stop() {
@@ -51,31 +52,39 @@ trap stop TERM
 if [ -r ${CONF} ]; then
     . ${CONF}
 else
+    echo "fatal error: missing ${CONF}"
     exit 1
 fi
-cd ${USER_HOME}
+cd ${APP_DIR}
 if [ ! -d "\\${GIT_PROJ_NAME}" ]; then
-    sudo -u ${USER} git clone "\\${GIT_CLONE_URL}" "\\${GIT_PROJ_NAME}"
+    git clone "\\${GIT_CLONE_URL}" "\\${GIT_PROJ_NAME}"
+fi
+if [ ! -d "\\${GIT_PROJ_NAME}" ]; then
+    echo "fatal error: java app directory \\${GIT_PROJ_NAME} was not created"
+    exit 1
 fi
 cd "\\${GIT_PROJ_NAME}"
-sudo -u ${USER} git pull
-sudo -u ${USER} ./gradlew build && java -jar build/libs/soph-collab-0.1.0.jar
+git pull
+./gradlew build && java -jar build/libs/soph-collab-0.1.0.jar
 EOF
-chmod ugo+x ${SCRIPT}
-ln -s ${SCRIPT} /usr/sbin/${APP}
-# setup init script
-cp /etc/init.d/skeleton ${INIT}
-chmod ugo+x ${SCRIPT}
-# subst function performs in-place substitution of conf variables (ie: var=value).
-# It expects three arguments: the file in which to perform the substution, the variable name, and the desired value
-subst () {
-    cat "${1}" | sed -e "s|^\\(${2}=\\).*$|\\1${3}|" > /tmp/xx; mv /tmp/xx "${1}"
-}
-subst ${INIT} NAME ${APP}
-subst ${INIT} DESC \\"Script to update java project code, build, and launch it\\"
-subst ${INIT} DAEMON_ARGS "\\"\\""
-# set to auto-start init script on system startup
-update-rc.d ${APP} defaults
+chmod 755 ${SCRIPT}
+chown ${USER}:${USER} ${SCRIPT}
+# setup upstart script
+cat << EOF > ${UPSTART}
+description     "Run java-app-dev"
+
+\# Vagrant emits 'vagrant-mounted' signal after mounting synced folder. Start
+\# after this signal instead of starting on a runlevel otherwise conf file
+\# needed by java-app-dev script won't be available.
+start on vagrant-mounted
+stop on runlevel [!2345]
+
+respawn
+
+script
+    su -c "${SCRIPT}" ${USER} > ${LOG}
+end script
+EOF
 echo "provisioning complete"
 SCRIPT
 
