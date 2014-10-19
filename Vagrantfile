@@ -58,7 +58,7 @@ if [ ! -d "\\${GIT_PROJ_NAME}" ]; then
 fi
 cd "\\${GIT_PROJ_NAME}"
 sudo -u ${USER} git pull
-sudo -u ${USER} gradlew build && java -jar build/libs/gs-spring-boot-0.1.0.jar
+sudo -u ${USER} ./gradlew build && java -jar build/libs/soph-collab-0.1.0.jar
 EOF
 chmod ugo+x ${SCRIPT}
 ln -s ${SCRIPT} /usr/sbin/${APP}
@@ -94,7 +94,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
-  config.vm.network "forwarded_port", guest: 80, host: 8080, protocol: 'tcp'
+  config.vm.network "forwarded_port", guest: 8080, host: 8080, protocol: 'tcp'
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
