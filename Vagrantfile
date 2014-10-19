@@ -25,6 +25,7 @@ add-apt-repository -y ppa:cwchien/gradle
 apt-get update
 apt_get_yes install gradle-ppa
 apt_get_yes install git
+apt_get_yes install curl
 apt-get autoremove
 apt-get clean
 #echo "disable selinux and iptables"
