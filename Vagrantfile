@@ -65,7 +65,7 @@ if [ ! -d "\\${GIT_PROJ_NAME}" ]; then
 fi
 cd "\\${GIT_PROJ_NAME}"
 git pull
-./gradlew build && java -jar build/libs/soph-collab-0.1.0.jar
+./gradlew clean run
 EOF
 chmod 755 ${SCRIPT}
 chown ${USER}:${USER} ${SCRIPT}
